@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#000000" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+  <title>Happy Birthday Ginger ❤️</title>
+
+  <!-- Link preview (shows when the link is texted/shared) -->
+  <meta name="description" content="A little something for you. Happy Birthday, Ginger. ❤️" />
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="Happy Birthday Ginger ❤️" />
+  <meta property="og:description" content="A little something for you. Tap to open." />
+  <meta property="og:image" content="assets/preview.jpg" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Happy Birthday Ginger ❤️" />
+  <meta name="twitter:description" content="A little something for you. Tap to open." />
+  <meta name="twitter:image" content="assets/preview.jpg" />
+
+  <!-- Google Fonts: Cormorant Garamond + Playfair Display (headlines), Poppins (body) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Poppins:wght@200;300;400;500&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- Background layers (persist through the whole experience) -->
+  <div class="bg-glow" id="bgGlow" aria-hidden="true"></div>
+  <canvas id="starfield" aria-hidden="true"></canvas>
+  <div class="fx-layer" id="fxLayer" aria-hidden="true"></div>
+
+  <!-- Background music (Emo supplies assets/music.mp3). Never autoplays. -->
+  <audio id="music" loop preload="none">
+    <source src="assets/music.mp3" type="audio/mpeg" />
+  </audio>
+
+  <!-- Music toggle -->
+  <button id="musicToggle" class="music-toggle" aria-label="Toggle music" aria-pressed="false" hidden>
+    <span class="music-icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+        <path class="ic-note" d="M9 18V6l10-2v12" />
+        <circle class="ic-note" cx="6" cy="18" r="2.4" />
+        <circle class="ic-note" cx="17" cy="16" r="2.4" />
+        <line class="ic-off" x1="3" y1="3" x2="21" y2="21" />
+      </svg>
+    </span>
+  </button>
+
+  <!-- ===== SCENE 1: OPENING ===== -->
+  <section id="opening" class="scene is-active" data-scene="opening">
+    <div class="opening-inner">
+      <p class="opening-line" id="openingLine">Someone special deserves a special moment...</p>
+      <p class="tap-hint" id="openingHint">tap to begin</p>
+    </div>
+  </section>
+
+  <!-- ===== SCENE 2: LETTERS ===== -->
+  <section id="letters" class="scene" data-scene="letters">
+    <div class="letter-stage">
+      <div class="letter-glyph" id="letterGlyph" aria-live="polite"></div>
+      <p class="letter-message" id="letterMessage"></p>
+    </div>
+    <div class="letter-progress" id="letterProgress" aria-hidden="true"></div>
+    <p class="tap-hint tap-hint--corner" id="letterHint">tap to continue</p>
+  </section>
+
+  <!-- ===== SCENE 3: FINAL REVEAL ===== -->
+  <section id="final" class="scene" data-scene="final">
+    <div class="final-inner">
+      <h1 class="final-title" id="finalTitle">Happy Birthday Ginger ❤️</h1>
+      <div class="final-letter" id="finalLetter">
+        <p>Thank you for being someone who has made my life better simply by being in it.</p>
+        <p>I hope today reminds you how deeply you are appreciated,<br />
+           how beautiful your heart is,<br />
+           and how much happiness you deserve.</p>
+        <p>May this next year bring you peace,<br />
+           laughter,<br />
+           adventure,<br />
+           and dreams coming true.</p>
+        <p>Happy Birthday.</p>
+        <p class="final-heart">❤️</p>
+      </div>
+
+      <!-- Optional photo gallery -->
+      <div class="memories" id="memories">
+        <h2 class="memories-title">Favorite Memories</h2>
+        <div class="gallery" id="gallery">
+          <figure class="photo"><img src="assets/photo1.jpg" alt="A favorite memory" loading="lazy" /></figure>
+          <figure class="photo"><img src="assets/photo2.jpg" alt="A favorite memory" loading="lazy" /></figure>
+          <figure class="photo"><img src="assets/photo3.jpg" alt="A favorite memory" loading="lazy" /></figure>
+        </div>
+      </div>
+
+      <div class="signature" id="signature">With love ❤️</div>
+      <div class="scroll-cue" id="scrollCue" aria-hidden="true">︿</div>
+    </div>
+  </section>
+
+  <script src="script.js"></script>
+</body>
+</html>
