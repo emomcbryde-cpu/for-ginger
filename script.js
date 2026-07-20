@@ -228,6 +228,7 @@
     musicToggle.hidden = false;
     musicToggle.classList.add("show");
     if (!music || !music.querySelector("source").getAttribute("src")) return;
+    try { music.volume = 0.55; } catch (e) {}
     var pr = music.play();
     if (pr && pr.then) {
       pr.then(function () {
@@ -296,7 +297,7 @@
       showScene(lettersScene);
       state = STATE.LETTERS;
       busy = false;
-      nextLetter();
+      startLetterSequence();
     }, prefersReduced ? 200 : 1200);
   }
 
@@ -316,25 +317,36 @@
     }
   }
 
-  /* ---- Reveal a single letter ---- */
-  function nextLetter() {
-    if (busy) return;
-    letterIndex++;
+  /* ---- Auto-advancing letter sequence ----
+     Each letter reveals, holds long enough to read, then fades and the
+     next one begins on its own. No tapping required. A tap simply skips
+     ahead to the next letter for anyone who wants to move faster.       */
 
-    if (letterIndex >= LETTERS.length) {
-      goToFinal();
-      return;
-    }
+  // timing (ms)
+  var T_REVEAL = prefersReduced ? 250 : 2600; // glyph + message fully in
+  var T_HOLD   = prefersReduced ? 400 : 4300; // reading time after reveal
+  var T_FADE   = prefersReduced ? 150 : 1050; // fade out before next
 
-    busy = true;
+  var letterTimers = [];
+  function clearLetterTimers() {
+    for (var i = 0; i < letterTimers.length; i++) window.clearTimeout(letterTimers[i]);
+    letterTimers = [];
+  }
+  function schedule(fn, ms) {
+    var id = window.setTimeout(fn, ms);
+    letterTimers.push(id);
+    return id;
+  }
+
+  // Show letter at current letterIndex, then auto-schedule the fade + next.
+  function showLetter() {
+    if (letterIndex >= LETTERS.length) { goToFinal(); return; }
+    busy = true; // block re-entrancy during the reveal itself
     var data = LETTERS[letterIndex];
 
-    // reset
     letterGlyph.className = "letter-glyph";
     letterMsg.className = "letter-message";
-    letterHint.classList.remove("show");
-    // force reflow so animations restart
-    void letterGlyph.offsetWidth;
+    void letterGlyph.offsetWidth; // restart animations
 
     letterGlyph.textContent = data.g;
     letterMsg.textContent = data.m;
@@ -344,32 +356,39 @@
     letterMsg.classList.add("reveal");
     burstSparkles(6);
 
-    var glyphDur = prefersReduced ? 200 : 1700;
-    window.setTimeout(function () {
-      letterGlyph.classList.add("glow-pulse");
-    }, glyphDur);
+    schedule(function () { letterGlyph.classList.add("glow-pulse"); }, prefersReduced ? 200 : 1700);
 
-    window.setTimeout(function () {
-      letterHint.classList.add("show");
-      busy = false;
-    }, prefersReduced ? 300 : 2600);
+    // once revealed, allow skipping, then auto-advance after the hold
+    schedule(function () { busy = false; }, T_REVEAL);
+    schedule(fadeAndNext, T_REVEAL + T_HOLD);
   }
 
-  /* ---- Advance within letters (fade out current, then next) ---- */
-  function advanceLetter() {
-    if (busy) return;
+  function fadeAndNext() {
+    clearLetterTimers();
     busy = true;
-    letterHint.classList.remove("show");
     letterGlyph.classList.add("fade-out");
     letterMsg.classList.add("fade-out");
-    window.setTimeout(function () {
+    schedule(function () {
+      letterIndex++;
       busy = false;
-      nextLetter();
-    }, prefersReduced ? 150 : 1000);
+      showLetter();
+    }, T_FADE);
+  }
+
+  // Optional: tap to skip to the next letter early.
+  function skipLetter() {
+    if (busy) return;      // ignore taps mid-reveal
+    fadeAndNext();
+  }
+
+  function startLetterSequence() {
+    letterIndex = 0;
+    showLetter();
   }
 
   /* ---- Letters -> Final ---- */
   function goToFinal() {
+    clearLetterTimers();
     busy = true;
     letterProg.style.transition = "opacity 1.2s ease";
     letterProg.style.opacity = "0";
@@ -480,11 +499,12 @@
       case STATE.INTRO:
         break; // intro plays automatically
       case STATE.OPENING:
+        // the single gesture: starts music + begins the auto journey
         goToLetters();
         break;
       case STATE.LETTERS:
-        if (letterIndex < 0) { nextLetter(); }
-        else { advanceLetter(); }
+        // fully automatic — a tap just skips ahead for those who want to
+        skipLetter();
         break;
       case STATE.FINAL:
         // let the user scroll freely; no tap action
