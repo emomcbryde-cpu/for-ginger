@@ -291,12 +291,16 @@
   }
 
   // The toggle: instant stop when playing, resume when muted.
+  // Debounced so a touch that fires both touchend AND click can't cancel itself.
+  var lastToggle = 0;
   function onToggle(e) {
     if (e) { e.stopPropagation(); e.preventDefault(); }
+    var t = Date.now();
+    if (t - lastToggle < 450) return;
+    lastToggle = t;
     if (music.paused) { playMusic(); } else { stopMusic(); }
   }
   musicToggle.addEventListener("click", onToggle);
-  // Guarantee responsiveness on touch even if a stray click is swallowed.
   musicToggle.addEventListener("touchend", onToggle);
 
   /* ============================================================
