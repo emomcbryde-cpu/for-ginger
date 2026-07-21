@@ -222,42 +222,82 @@
   /* ============================================================
      MUSIC — never autoplays; starts on first user tap
      ============================================================ */
+  var MUSIC_VOL = 0.55;
+  var mtLabel = musicToggle.querySelector(".mt-label");
+  var fadeTimer = null;
+  var musicHasSource = !!(music && music.querySelector("source") &&
+                          music.querySelector("source").getAttribute("src"));
+
+  function clearFade() {
+    if (fadeTimer) { window.clearInterval(fadeTimer); fadeTimer = null; }
+  }
+
+  // Reflect the ACTUAL audio state in the button (single source of truth).
+  function syncToggleUI() {
+    var playing = !music.paused;
+    musicToggle.classList.toggle("is-muted", !playing);
+    musicToggle.setAttribute("aria-pressed", playing ? "true" : "false");
+    musicToggle.setAttribute("aria-label", playing ? "Mute music" : "Play music");
+    if (mtLabel) mtLabel.innerHTML = playing ? "Music&nbsp;on" : "Muted";
+  }
+
+  function playMusic() {
+    if (!musicHasSource) return;
+    clearFade();
+    // One continuous piece — never loop. It resolves/fades at the final scene.
+    try { music.loop = false; music.volume = MUSIC_VOL; } catch (e) {}
+    var pr = music.play();
+    if (pr && pr.then) {
+      pr.then(syncToggleUI).catch(function () { syncToggleUI(); });
+    } else {
+      syncToggleUI();
+    }
+  }
+
+  // Instant, reliable stop.
+  function stopMusic() {
+    clearFade();
+    try { music.pause(); } catch (e) {}
+    syncToggleUI();
+  }
+
+  // Graceful end: ramp volume to zero, then stop for good.
+  function fadeOutMusic(ms) {
+    if (!musicHasSource || music.paused) return;
+    clearFade();
+    var steps = 30;
+    var stepMs = Math.max(30, Math.floor(ms / steps));
+    var v0 = music.volume;
+    var i = 0;
+    fadeTimer = window.setInterval(function () {
+      i++;
+      var v = v0 * (1 - i / steps);
+      try { music.volume = v < 0 ? 0 : v; } catch (e) {}
+      if (i >= steps) {
+        clearFade();
+        try { music.loop = false; music.pause(); music.volume = MUSIC_VOL; } catch (e) {}
+        syncToggleUI();
+      }
+    }, stepMs);
+  }
+
+  // First user gesture starts the music (mobile autoplay policy).
   function tryStartMusic() {
     if (musicStarted) return;
     musicStarted = true;
     musicToggle.hidden = false;
     musicToggle.classList.add("show");
-    if (!music || !music.querySelector("source").getAttribute("src")) return;
-    try { music.volume = 0.55; } catch (e) {}
-    var pr = music.play();
-    if (pr && pr.then) {
-      pr.then(function () {
-        musicToggle.classList.add("playing");
-        musicToggle.setAttribute("aria-pressed", "true");
-      }).catch(function () {
-        // No file yet, or blocked — toggle stays available, silent.
-        musicToggle.classList.remove("playing");
-        musicToggle.setAttribute("aria-pressed", "false");
-      });
-    }
+    playMusic();
   }
 
-  musicToggle.addEventListener("click", function (e) {
-    e.stopPropagation();
-    if (music.paused) {
-      var pr = music.play();
-      if (pr && pr.then) {
-        pr.then(function () {
-          musicToggle.classList.add("playing");
-          musicToggle.setAttribute("aria-pressed", "true");
-        }).catch(function () {});
-      }
-    } else {
-      music.pause();
-      musicToggle.classList.remove("playing");
-      musicToggle.setAttribute("aria-pressed", "false");
-    }
-  });
+  // The toggle: instant stop when playing, resume when muted.
+  function onToggle(e) {
+    if (e) { e.stopPropagation(); e.preventDefault(); }
+    if (music.paused) { playMusic(); } else { stopMusic(); }
+  }
+  musicToggle.addEventListener("click", onToggle);
+  // Guarantee responsiveness on touch even if a stray click is swallowed.
+  musicToggle.addEventListener("touchend", onToggle);
 
   /* ============================================================
      SCENE TRANSITIONS
@@ -272,17 +312,17 @@
 
   /* ---- Intro: black -> glow + stars + line ---- */
   function beginIntro() {
-    var delay = prefersReduced ? 200 : 1400;
+    var delay = prefersReduced ? 150 : 900;
     window.setTimeout(function () {
       bgGlow.classList.add("show");
       starCanvas.classList.add("show");
       initStars();
       startParticles();
       openingLine.classList.add("reveal");
+      state = STATE.OPENING;               // tappable right away
       window.setTimeout(function () {
         openingHint.classList.add("show");
-        state = STATE.OPENING;
-      }, prefersReduced ? 300 : 3000);
+      }, prefersReduced ? 250 : 1700);
     }, delay);
   }
 
@@ -298,7 +338,7 @@
       state = STATE.LETTERS;
       busy = false;
       startLetterSequence();
-    }, prefersReduced ? 200 : 1200);
+    }, prefersReduced ? 150 : 720);
   }
 
   function buildProgressDots() {
@@ -322,10 +362,10 @@
      next one begins on its own. No tapping required. A tap simply skips
      ahead to the next letter for anyone who wants to move faster.       */
 
-  // timing (ms)
-  var T_REVEAL = prefersReduced ? 250 : 2600; // glyph + message fully in
-  var T_HOLD   = prefersReduced ? 400 : 4300; // reading time after reveal
-  var T_FADE   = prefersReduced ? 150 : 1050; // fade out before next
+  // timing (ms) — brisk but readable; tap skips ahead instantly
+  var T_REVEAL = prefersReduced ? 200 : 1450; // glyph + message fully in
+  var T_HOLD   = prefersReduced ? 300 : 2300; // reading time after reveal
+  var T_FADE   = prefersReduced ? 120 : 620;  // fade out before next
 
   var letterTimers = [];
   function clearLetterTimers() {
@@ -356,7 +396,7 @@
     letterMsg.classList.add("reveal");
     burstSparkles(6);
 
-    schedule(function () { letterGlyph.classList.add("glow-pulse"); }, prefersReduced ? 200 : 1700);
+    schedule(function () { letterGlyph.classList.add("glow-pulse"); }, prefersReduced ? 150 : 1000);
 
     // once revealed, allow skipping, then auto-advance after the hold
     schedule(function () { busy = false; }, T_REVEAL);
@@ -401,7 +441,7 @@
       showScene(finalScene);
       runFinalSequence();
       busy = false;
-    }, prefersReduced ? 200 : 1300);
+    }, prefersReduced ? 150 : 850);
   }
 
   function runFinalSequence() {
@@ -414,8 +454,8 @@
 
     // stagger the letter paragraphs
     var paras = finalLetter.querySelectorAll("p");
-    var base = prefersReduced ? 150 : 2600;
-    var step = prefersReduced ? 60 : 900;
+    var base = prefersReduced ? 120 : 1600;
+    var step = prefersReduced ? 60 : 650;
     for (var i = 0; i < paras.length; i++) {
       (function (p, i) {
         window.setTimeout(function () { p.classList.add("reveal"); }, base + i * step);
@@ -430,6 +470,7 @@
     }, afterLetter);
 
     // signature + sparkle finale
+    var sigDelay = afterLetter + (prefersReduced ? 200 : 1400);
     window.setTimeout(function () {
       signature.classList.add("reveal");
       scrollCue.classList.add("show");
@@ -438,7 +479,13 @@
       if (!prefersReduced) {
         window.setInterval(function () { burstSparkles(4); }, 3500);
       }
-    }, afterLetter + (prefersReduced ? 200 : 1400));
+    }, sigDelay);
+
+    // The music is composed to resolve right as the signature lands.
+    // Fade it out gently so words and music finish together, then stop.
+    window.setTimeout(function () {
+      fadeOutMusic(3200);
+    }, sigDelay + (prefersReduced ? 200 : 800));
   }
 
   /* ---- Memories: reveal only photos that actually load ---- */
